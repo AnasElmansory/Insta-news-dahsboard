@@ -32,7 +32,6 @@ export default {
 
     '@nuxtjs/composition-api/module',
     '@nuxt/typescript-build',
-    '@nuxtjs/fontawesome',
     ['@nuxtjs/vuetify', { iconfont: 'mdi' }],
   ],
 
