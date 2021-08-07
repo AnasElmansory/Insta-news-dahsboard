@@ -30,7 +30,6 @@ export default {
   buildModules: [
     // https://go.nuxtjs.dev/typescript
 
-    '@nuxtjs/composition-api/module',
     '@nuxt/typescript-build',
     ['@nuxtjs/vuetify', { iconfont: 'mdi' }],
   ],
