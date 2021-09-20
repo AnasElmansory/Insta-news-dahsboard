@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard" @open-snack="openSnack"></div>
+  <div class="dashboard"></div>
 </template>
 
 
@@ -9,9 +9,6 @@ import { Vue, Component, Prop } from 'nuxt-property-decorator'
 import { avoidRedunduntRouting } from '~/lib/auth'
 @Component({})
 export default class Dashboard extends Vue {
-  openSnack(val: boolean) {
-    console.log('done')
-  }
   mounted() {
     let route: string = '/dashboard/sources'
     if (process.browser) {

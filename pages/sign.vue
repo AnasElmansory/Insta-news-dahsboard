@@ -1,14 +1,38 @@
 <template>
   <v-app>
-    <v-container id="wrap-container" fluid>
-      <v-card elevation="20" class="signBox">
-        <img src="../static/horizontal_logo.png" alt="INSTA News" />
-
-        <v-btn color="error" height="50" @click="signIn">
-          <v-icon left>mdi-google</v-icon>
-
-          Sign In With Google
-        </v-btn>
+    <v-container fluid class="sign-page-container">
+      <v-card elevation="8">
+        <v-layout column align-center justify-center>
+          <img src="../static/horizontal_logo.png" alt="INSTA News" />
+          <v-layout wrap justify-center>
+            <v-tooltip top>
+              <template v-slot:activator="{ on }">
+                <v-btn
+                  id="google-signin-button"
+                  v-on="on"
+                  fab
+                  @click="signInGoogle"
+                >
+                  <v-icon>mdi-google</v-icon>
+                </v-btn>
+              </template>
+              Log In with Google
+            </v-tooltip>
+            <v-tooltip top>
+              <template v-slot:activator="{ on }">
+                <v-btn
+                  id="facebook-signin-button"
+                  v-on="on"
+                  fab
+                  @click="signInFacebook"
+                >
+                  <v-icon>mdi-facebook</v-icon>
+                </v-btn>
+              </template>
+              Log In with Facebook
+            </v-tooltip>
+          </v-layout>
+        </v-layout>
       </v-card>
     </v-container>
     <Snackbar
@@ -22,6 +46,7 @@
 <script lang="ts">
 import Vue from 'vue'
 import Snackbar from '~/components/core/Snackbar.vue'
+import User from '~/lib/models/user'
 
 import getAdminUser from '../lib/auth'
 export default Vue.extend({
@@ -30,37 +55,74 @@ export default Vue.extend({
       showSnackbar: false,
       snackbarEvent: '',
       snackbarColor: 'success',
+      isFBAuthReady: false,
     }
   },
 
   components: {
     Snackbar,
   },
+
   methods: {
-    async signIn() {
-      let googleUser: any
+    async onSuccess(user: User, accessToken: string) {
       try {
-        googleUser = await (await Vue.GoogleAuth).signIn()
+        const adminOr = await getAdminUser(user.id!, accessToken, this.$axios)
+        if (adminOr === false) {
+          this.snackbarEvent = 'Only INSTA News admins!'
+          this.snackbarColor = 'error'
+          this.showSnackbar = true
+        } else {
+          this.$store.commit('signIn', adminOr)
+          this.$router.replace('/dashboard/sources')
+        }
       } catch (error) {
         this.snackbarEvent = error.error
         this.snackbarColor = 'error'
         this.showSnackbar = true
       }
-      if (!googleUser) {
-        return
-      } else {
-        const adminOr = await getAdminUser(
-          googleUser.getId(),
-          googleUser.Zb.access_token,
-          this.$axios
+    },
+    onFailure({ error }: { error: string }) {
+      this.snackbarEvent = error
+      this.snackbarColor = 'error'
+      this.showSnackbar = true
+    },
+    async signInFacebook() {
+      this.facebook.login({ scope: 'email', enable_profile_selector: true })
+      this.facebook.login((result) => {
+        console.log(result.status)
+        const accessToken = result.authResponse.accessToken
+        this.facebook.api<fb.UserField>(
+          '/me',
+          { fields: ['id', 'name', 'email', 'profile_pic'] },
+          async (response) => {
+            const user = new User({
+              id: response.id.toString(),
+              name: response.name,
+              email: response.email,
+              avatar: response.profile_pic,
+              provider: 'facebook',
+              isAuthenticated: true,
+            })
+            await this.onSuccess(user, accessToken)
+          }
         )
-        if (adminOr === false) {
-          return
-        } else {
-          this.$store.commit('signIn', adminOr)
-          this.$router.replace('/dashboard/sources')
-        }
-      }
+      })
+    },
+    async signInGoogle() {
+      this.google.then(async (auth) => {
+        const googleUser = await auth.signIn()
+        const profile = googleUser.getBasicProfile()
+        const accessToken = googleUser.getAuthResponse().access_token
+        const user = new User({
+          id: profile.getId(),
+          name: profile.getName(),
+          email: profile.getEmail(),
+          avatar: profile.getImageUrl(),
+          provider: 'google',
+          isAuthenticated: true,
+        })
+        await this.onSuccess(user, accessToken)
+      })
     },
   },
 })
@@ -69,51 +131,48 @@ export default Vue.extend({
 
 
 <style scoped>
-.signBox {
-  top: 25%;
-  left: 30%;
-  width: 40%;
-  height: 50%;
-  position: fixed;
+.sign-page-container {
   display: flex;
-  flex-flow: column;
-  justify-content: space-around;
+  height: 100%;
+  width: 100%;
+  background-color: #4267b2;
   align-items: center;
-  border-radius: 15px;
+  justify-content: center;
   user-select: none;
 }
-#wrap-container {
-  background-color: #4267b2;
-  height: 100vh;
-}
 
-img {
-  max-height: 150px;
-  max-width: 300px;
-}
-
-.buttonBar {
-  display: flex;
-}
-#googleButton {
-  transition: 0.4s;
-  /* background: #db4437; */
-  /* color: #fff; */
-  /* border-radius: 6px; */
-  /* box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.26); */
-  /* border: 1px solid #fff; */
-  margin: 10px;
-  padding: 10px;
-  word-wrap: none;
-}
-/* #googleButton:hover {
-  transition: 0.4s;
-  background: #db4437;
-  box-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.26);
-  /* border: 1px solid #fff; */
-/* } */
-
-#googleIcon {
+#google-signin-button {
+  padding: 8px;
+  margin: 8px;
+  background-color: #db4437;
   color: #fff;
+}
+#facebook-signin-button {
+  background-color: #4267b2;
+  color: #fff;
+  padding: 8px;
+  margin: 8px;
+}
+
+#main-app {
+  display: flex;
+  min-height: 100%;
+  min-width: 100%;
+  height: 100%;
+  width: 100%;
+}
+
+.col {
+  justify-content: center;
+}
+img {
+  max-height: 200px;
+  max-width: 100%;
+  margin: 8px;
+}
+
+.v-card {
+  border-radius: 15px;
+  box-shadow: 0 2px 8px 0px rgb(0, 0, 0, 0.25);
 }
 </style>

@@ -1,22 +1,22 @@
 <template>
   <v-container fluid>
-    <b-card
+    <v-card
       :class="countryCardClass"
-      :img-src="countryFlag"
-      img-alt="country"
-      img-right
-      v-ripple
       @click="openEditDilog"
+      elevation="10"
+      rounded="xl"
+      v-ripple
     >
-      <b-card-title>{{ country.countryName }}</b-card-title>
-      <b-card-subTitle>{{ country.countryNameAr }}</b-card-subTitle>
+      <v-img :src="countryFlag" width="64" height="64" contain></v-img>
+      <v-card-title>{{ country.countryName }}</v-card-title>
+      <v-card-subtitle>{{ country.countryNameAr }}</v-card-subtitle>
 
       <v-chip-group column>
         <v-chip v-for="(countrySource, index) in country.sources" :key="index">
           {{ countrySource.name }}
         </v-chip>
       </v-chip-group>
-    </b-card>
+    </v-card>
 
     <Dialog
       v-model="showDialog"
@@ -122,20 +122,22 @@ export default class CountryWidget extends Vue {
   }
 
   async onAddSource(query: string) {
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      `/control/sources/search/${query}`,
-      HttpMethods.GET
-    )
-    if (typeof result === 'string') {
-      this.snackbarEvent = result as string
-      this.snackbarColor = 'error'
-      this.showSnackbar = true
-    } else {
-      this.sources = result.data
-      this.showSelectionDialog = true
-    }
+    this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        `/control/sources/search/${query}`,
+        HttpMethods.GET
+      )
+      if (typeof result === 'string') {
+        this.snackbarEvent = result as string
+        this.snackbarColor = 'error'
+        this.showSnackbar = true
+      } else {
+        this.sources = result.data
+        this.showSelectionDialog = true
+      }
+    })
   }
   updateCountrySources(source: Source) {
     let sourceList = this.formFields[3].value as CountrySource[]
@@ -171,23 +173,25 @@ export default class CountryWidget extends Vue {
       countryCode,
       sources,
     }
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      '/control/countries',
-      HttpMethods.PUT,
-      country
-    )
-    if (typeof result === 'string') {
-      this.snackbarEvent = result as string
-      this.snackbarColor = 'error'
-    } else {
-      const country = Country.fromJSON(result.data)
-      getCountriesModule(this.$store).updateCountry(country)
-      this.snackbarEvent = `${country.countryName} is updated successfully`
-      this.snackbarColor = 'success'
-    }
-    this.showSnackbar = true
+    this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        '/control/countries',
+        HttpMethods.PUT,
+        country
+      )
+      if (typeof result === 'string') {
+        this.snackbarEvent = result as string
+        this.snackbarColor = 'error'
+      } else {
+        const country = Country.fromJSON(result.data)
+        getCountriesModule(this.$store).updateCountry(country)
+        this.snackbarEvent = `${country.countryName} is updated successfully`
+        this.snackbarColor = 'success'
+      }
+      this.showSnackbar = true
+    })
   }
 
   openEditDilog() {
@@ -210,11 +214,11 @@ export default class CountryWidget extends Vue {
 .countryCard {
   transition: 0.3s;
   cursor: pointer;
+  padding: 16px;
 }
 
 .countryCard:hover {
-  transform: scale(0.9);
-  color: #008976;
+  transform: translateY(-5%);
 }
 
 .card {

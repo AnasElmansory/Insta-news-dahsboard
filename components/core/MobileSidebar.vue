@@ -1,13 +1,5 @@
-<template >
-  <v-navigation-drawer
-    id="nav-bar"
-    app
-    dark
-    mini-variant
-    expand-on-hover
-    permanent
-    mini-variant-width="60"
-  >
+<template>
+  <v-navigation-drawer v-model="showSidebar" fixed dark>
     <b-avatar :src="user.avatar" size="3rem" variant="success" class="avatar">
     </b-avatar>
     <v-list id="lists" nav>
@@ -36,26 +28,22 @@
         </span>
       </v-list-item>
     </v-list>
-    <v-tooltip bottom>
-      <template v-slot:activator="{ on }">
-        <v-row id="signOutBtn" justify="center">
-          <v-btn icon v-on="on" @click="signOut">
-            <v-icon light>mdi-logout</v-icon>
-          </v-btn>
-        </v-row>
-      </template>
-      Sign Out
-    </v-tooltip>
+
+    <v-row id="signOutBtn" justify="center">
+      <v-btn text @click="signOut">
+        <v-icon left light>mdi-logout</v-icon>
+        Sign Out
+      </v-btn>
+    </v-row>
   </v-navigation-drawer>
 </template>
 
-
-
 <script lang='ts'>
-import { Vue, Component } from 'nuxt-property-decorator'
+import { Vue, Component, VModel } from 'nuxt-property-decorator'
 import getAdminUser from '~/lib/auth'
 @Component({})
 export default class Sidebar extends Vue {
+  @VModel({ default: false }) showSidebar!: boolean
   sidebarItems: string[] = [
     'Sources',
     'Users',
@@ -92,11 +80,10 @@ export default class Sidebar extends Vue {
   }
 
   signOut() {
-    this.google.then(async (auth) => {
-      await auth.signOut()
-      this.$store.commit('signOut')
-      return this.$router.replace('/sign')
-    })
+    this.google.signOut()
+
+    this.$store.commit('signOut')
+    return this.$router.replace('/sign')
   }
 }
 </script>

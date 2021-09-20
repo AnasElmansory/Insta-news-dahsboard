@@ -1,7 +1,8 @@
 <template>
   <v-app>
-    <Sidebar v-once class="sidebar" />
+    <SearchBox />
     <Nuxt class="view" />
+    <Sidebar v-once class="sidebar" />
   </v-app>
 </template>
 
@@ -9,8 +10,9 @@
 import { Vue, Component } from 'nuxt-property-decorator'
 import { checkUserOnInit } from '~/lib/auth'
 import Sidebar from '../components/core/SideNavBar.vue'
+import SearchBox from '../components/core/SearchBox.vue'
 @Component({
-  components: { Sidebar },
+  components: { Sidebar, SearchBox },
 })
 export default class Dash extends Vue {
   async mounted() {
@@ -18,12 +20,9 @@ export default class Dash extends Vue {
     if (process.browser) {
       route = localStorage.getItem('dashboardRoute') || '/dashboard/sources'
     }
-    await checkUserOnInit(
-      await Vue.GoogleAuth,
-      this.$router,
-      this.$axios,
-      route
-    )
+    this.google.then(async (auth) => {
+      await checkUserOnInit(auth, this.$router, this.$axios, route)
+    })
   }
 }
 </script>

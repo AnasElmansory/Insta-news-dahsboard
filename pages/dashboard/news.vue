@@ -2,6 +2,7 @@
   <v-container fluid>
     <page-view :type="pageType" v-on:setCurrentPage="setCurrentPage">
     </page-view>
+    <SizedBox />
 
     <v-btn fab bottom dark right fixed @click="updateFeedingState">
       <v-icon v-if="isFeeding">mdi-wifi-sync</v-icon>
@@ -27,14 +28,17 @@ import { Vue, Component } from 'nuxt-property-decorator'
 import { getNewsModule } from '~/store/data'
 import NewsModule from '~/store/news'
 import PageView from '~/components/PageView.vue'
+import SizedBox from '~/components/core/SizedBox.vue'
 import ItemType, { HttpMethods } from '~/lib/types'
 import News from '~/lib/models/news'
 import { constructHeaders } from '~/lib/auth'
 import { baseUrl } from '~/lib/constants'
 import { saveRoute, taskWrapper } from '~/lib/utils/helper'
 @Component({
-  components: { PageView },
-  layout: 'dash',
+  components: { PageView, SizedBox },
+  layout(context) {
+    return context.payload?.layout ?? 'dash'
+  },
 })
 export default class NewsPage extends Vue {
   pageType: ItemType = ItemType.News
@@ -58,18 +62,66 @@ export default class NewsPage extends Vue {
   }
 
   async getFeedingState() {
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      '/control/feeding',
-      HttpMethods.GET
-    )
-    if (typeof result === 'string') {
-      this.snackbarEvent = result as string
-      this.snackbarColor = 'error'
-      this.showSnackbar = true
-    } else {
-      this.isFeeding = result.data.feeding
+    this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        '/control/feeding',
+        HttpMethods.GET
+      )
+      if (typeof result === 'string') {
+        this.snackbarEvent = result as string
+        this.snackbarColor = 'error'
+        this.showSnackbar = true
+      } else {
+        this.isFeeding = result.data.feeding
+        if (this.isFeeding) {
+          this.snackbarColor = 'success'
+          this.snackbarEvent = 'Feeding News Is Working'
+        } else {
+          this.snackbarColor = 'warning'
+          this.snackbarEvent = 'Feeding News Is NOT Working'
+        }
+        this.showSnackbar = true
+      }
+    })
+  }
+
+  async updateFeedingState() {
+    let response: any
+    this.google.then(async (auth) => {
+      if (this.isFeeding === true) {
+        const result = await taskWrapper(
+          this.$axios,
+          await constructHeaders(auth),
+          '/control/stopfeeding',
+          HttpMethods.POST
+        )
+        if (typeof result === 'string') {
+          this.snackbarColor = 'error'
+          this.snackbarEvent = result
+          this.showSnackbar = true
+          return
+        } else {
+          response = result.data
+        }
+      } else {
+        const result = await taskWrapper(
+          this.$axios,
+          await constructHeaders(auth),
+          '/control/startfeeding',
+          HttpMethods.POST
+        )
+        if (typeof result === 'string') {
+          this.snackbarColor = 'error'
+          this.snackbarEvent = result
+          this.showSnackbar = true
+          return
+        } else {
+          response = result.data
+        }
+      }
+      this.isFeeding = response.feeding
       if (this.isFeeding) {
         this.snackbarColor = 'success'
         this.snackbarEvent = 'Feeding News Is Working'
@@ -78,51 +130,7 @@ export default class NewsPage extends Vue {
         this.snackbarEvent = 'Feeding News Is NOT Working'
       }
       this.showSnackbar = true
-    }
-  }
-
-  async updateFeedingState() {
-    let response: any
-    if (this.isFeeding === true) {
-      const result = await taskWrapper(
-        this.$axios,
-        await constructHeaders(await Vue.GoogleAuth),
-        '/control/stopfeeding',
-        HttpMethods.POST
-      )
-      if (typeof result === 'string') {
-        this.snackbarColor = 'error'
-        this.snackbarEvent = result
-        this.showSnackbar = true
-        return
-      } else {
-        response = result.data
-      }
-    } else {
-      const result = await taskWrapper(
-        this.$axios,
-        await constructHeaders(await Vue.GoogleAuth),
-        '/control/startfeeding',
-        HttpMethods.POST
-      )
-      if (typeof result === 'string') {
-        this.snackbarColor = 'error'
-        this.snackbarEvent = result
-        this.showSnackbar = true
-        return
-      } else {
-        response = result.data
-      }
-    }
-    this.isFeeding = response.feeding
-    if (this.isFeeding) {
-      this.snackbarColor = 'success'
-      this.snackbarEvent = 'Feeding News Is Working'
-    } else {
-      this.snackbarColor = 'warning'
-      this.snackbarEvent = 'Feeding News Is NOT Working'
-    }
-    this.showSnackbar = true
+    })
   }
 
   get newsModule(): NewsModule {
@@ -139,23 +147,23 @@ export default class NewsPage extends Vue {
     }
   }
   async getNews(page: number) {
-    const auth = await Vue.GoogleAuth
-    const headers = await constructHeaders(auth)
-    const response = await this.$axios.get(baseUrl + '/control/news', {
-      headers: headers,
-      params: { page: page },
-    })
+    this.google.then(async (auth) => {
+      const headers = await constructHeaders(auth)
+      const response = await this.$axios.get(baseUrl + '/control/news', {
+        headers: headers,
+        params: { page: page },
+      })
 
-    const itemList = response.data.map((x: any) => {
-      return News.fromJSON(x)
-    })
+      const itemList = response.data.map((x: any) => {
+        return News.fromJSON(x)
+      })
 
-    this.newsModule.setItems({
-      items: itemList,
-      pageKey: page,
+      this.newsModule.setItems({
+        items: itemList,
+        pageKey: page,
+      })
     })
   }
 }
 </script>
-
 

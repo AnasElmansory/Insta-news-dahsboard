@@ -11,13 +11,6 @@ interface AxiosResponse<T = any> {
   request?: any
 }
 
-// export default function errorHandler(error: any) {
-//   if (error.response) alert(`${error.response.data} ${error.response.status}`)
-//   else {
-//     alert('something went wrong')
-//   }
-// }
-
 export async function taskWrapper(
   axios: NuxtAxiosInstance,
   headers: any,
@@ -64,14 +57,23 @@ export async function taskWrapper(
   }
 }
 
-function hightImageUrl(image: string): string {
+export function hightImageUrl(image: string): string {
   return image.replace('normal', '400x400') ?? ''
 }
 
-function saveRoute(route: string) {
+export function saveRoute(route: string) {
   if (process.browser) {
     localStorage.setItem('dashboardRoute', route)
   }
 }
+export const twitRegExp =
+  /((https|http):\/\/([a-zA-Z][\.\-\_\@])\w+\/([a-zA-Z1-9]\w+))\w/gi
+export function extractTwitterUrl(content: string): string[] | undefined {
+  const matches = content.match(twitRegExp)
+  return matches?.map((x) => x.toString())
+}
 
-export { saveRoute, hightImageUrl }
+export function date_parser(date: string): string {
+  const parsedDate = new Date(date)
+  return `${parsedDate.getUTCHours()}:${parsedDate.getMinutes()}     ${parsedDate.toLocaleDateString()}`
+}

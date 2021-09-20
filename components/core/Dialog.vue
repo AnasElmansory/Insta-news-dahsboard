@@ -58,6 +58,14 @@
         </v-container>
 
         <v-row justify="center" no-gutters>
+          <v-btn
+            class="action-button"
+            color="error"
+            v-show="this.isMobile || false"
+            @click="closeDialog"
+          >
+            Close
+          </v-btn>
           <v-btn class="action-button" color="error" @click="reset"
             >Reset</v-btn
           >
@@ -98,6 +106,17 @@ export default class Dialog extends Vue {
     }
   }
 
+  get buttonColor(): string {
+    if (this.event === 'Add') {
+      return 'success'
+    } else {
+      return 'warning'
+    }
+  }
+
+  get buttonText() {
+    return this.event + ' ' + this.modelType
+  }
   get showDialogWithFabBtn(): boolean {
     if (this.event === 'Add') {
       return true
@@ -146,20 +165,11 @@ export default class Dialog extends Vue {
     }
   }
 
-  get buttonColor(): string {
-    if (this.event === 'Add') {
-      return 'success'
-    } else {
-      return 'warning'
-    }
-  }
-
-  get buttonText() {
-    return this.event + ' ' + this.modelType
-  }
-
   reset() {
     this.$refs.form.reset()
+  }
+  closeDialog() {
+    this.showDialog = false
   }
 }
 </script>

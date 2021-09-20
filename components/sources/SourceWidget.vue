@@ -1,8 +1,10 @@
 <template>
-  <b-card class="sourceWidget" img-left>
-    <b-row class="avatarBox" no-gutters>
-      <b-avatar :src="imageUrl" size="4rem"> </b-avatar>
-      <b-row class="actionButtons" v-show="!usedInDialog" no-gutters>
+  <v-card class="sourceWidget" :width="sourceWidth" elevation="10" rounded="xl">
+    <v-row id="sourceHeader" justify="space-between" align="center" no-gutters>
+      <v-avatar size="4rem">
+        <v-img :src="imageUrl"></v-img>
+      </v-avatar>
+      <v-row v-show="!usedInDialog" justify="end" no-gutters>
         <v-btn
           class="button deleteButton"
           @click="deleteSource(source.id)"
@@ -48,18 +50,19 @@
               </v-row>
             </v-container>
           </v-card>
+          <SizedBox />
         </v-dialog>
-      </b-row>
-    </b-row>
-    <b-card-title>{{ source.name }}</b-card-title>
-    <b-card-subTitle>{{ '@' + source.username }}</b-card-subTitle>
-    <b-card-text class="description"> {{ source.description }} </b-card-text>
+      </v-row>
+    </v-row>
+    <v-card-title>{{ source.name }}</v-card-title>
+    <v-card-subtitle>{{ '@' + source.username }}</v-card-subtitle>
+    <v-card-text id="description"> {{ source.description }} </v-card-text>
     <Snackbar
       v-model="showSnackbar"
       :snackbarEvent="snackbarEvent"
       :snackbarColor="snackbarColor"
     />
-  </b-card>
+  </v-card>
 </template>
 
 
@@ -68,6 +71,7 @@ import { Component, Prop, Vue } from 'nuxt-property-decorator'
 import { getSourceModule } from '~/store/data'
 import CountryWidget from '~/components/countries/CountryWidget.vue'
 import Snackbar from '~/components/core/Snackbar.vue'
+import SizedBox from '~/components/core/SizedBox.vue'
 import Source from '~/lib/models/source'
 import Country from '~/lib/models/country'
 import { hightImageUrl, taskWrapper } from '~/lib/utils/helper'
@@ -77,6 +81,7 @@ import { HttpMethods } from '~/lib/types'
   components: {
     CountryWidget,
     Snackbar,
+    SizedBox,
   },
 })
 export default class Sources extends Vue {
@@ -89,6 +94,14 @@ export default class Sources extends Vue {
   snackbarEvent: string = ''
   snackbarColor: string = 'sucess'
   showSnackbar: boolean = false
+
+  get sourceWidth(): string {
+    if (this.isMobile) {
+      return '300'
+    } else {
+      return '400'
+    }
+  }
 
   get editSourceBtnDisabled(): boolean {
     return false
@@ -110,43 +123,47 @@ export default class Sources extends Vue {
     if (!confirm('Are you sure you want to DELETE this Source!')) {
       return
     } else {
+      this.google.then(async (auth) => {
+        const result = await taskWrapper(
+          this.$axios,
+          await constructHeaders(auth),
+          `/control/sources/${sourceId}`,
+          HttpMethods.DELETE
+        )
+        if (typeof result === 'string') {
+          this.snackbarEvent = result
+          this.snackbarColor = 'error'
+          this.showSnackbar = true
+        } else {
+          const source = (result as any).data as Source
+          this.snackbarEvent = `${source.name!} successfuly deleted`
+          this.snackbarColor = 'warning'
+          this.showSnackbar = true
+          getSourceModule(this.$store).deleteItem(source.id!)
+        }
+      })
+    }
+  }
+
+  async searchCountry() {
+    this.loading = true
+
+    this.google.then(async (auth) => {
       const result = await taskWrapper(
         this.$axios,
-        await constructHeaders(await Vue.GoogleAuth),
-        `/control/sources/${sourceId}`,
-        HttpMethods.DELETE
+        await constructHeaders(auth),
+        `/control/countries/search/${this.query}`,
+        HttpMethods.GET
       )
       if (typeof result === 'string') {
         this.snackbarEvent = result
         this.snackbarColor = 'error'
         this.showSnackbar = true
       } else {
-        const source = (result as any).data as Source
-        this.snackbarEvent = `${source.name!} successfuly deleted`
-        this.snackbarColor = 'warning'
-        this.showSnackbar = true
-        getSourceModule(this.$store).deleteItem(source.id!)
+        const response = result as any
+        this.countryList = response.data.map((x: any) => Country.fromJSON(x))
       }
-    }
-  }
-
-  async searchCountry() {
-    this.loading = true
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      `/control/countries/search/${this.query}`,
-      HttpMethods.GET
-    )
-    if (typeof result === 'string') {
-      this.snackbarEvent = result
-      this.snackbarColor = 'error'
-      this.showSnackbar = true
-    } else {
-      const response = result as any
-      this.countryList = response.data.map((x: any) => Country.fromJSON(x))
-    }
-
+    })
     this.loading = false
   }
 
@@ -170,23 +187,25 @@ export default class Sources extends Vue {
             return { id: x.id, name: x.name }
           }),
         }
-        const result = await taskWrapper(
-          this.$axios,
-          await constructHeaders(await Vue.GoogleAuth),
-          '/control/countries',
-          HttpMethods.PUT,
-          data
-        )
-        if (typeof result === 'string') {
-          this.snackbarEvent = result
-          this.snackbarColor = 'error'
-        } else {
-          const source = (result as any).data as Source
-          getSourceModule(this.$store).deleteItem(source.id!)
-          this.snackbarEvent = 'Countries Have Been Updated'
-          this.snackbarColor = 'success'
-        }
-        this.showSnackbar = true
+        this.google.then(async (auth) => {
+          const result = await taskWrapper(
+            this.$axios,
+            await constructHeaders(auth),
+            '/control/countries',
+            HttpMethods.PUT,
+            data
+          )
+          if (typeof result === 'string') {
+            this.snackbarEvent = result
+            this.snackbarColor = 'error'
+          } else {
+            const source = (result as any).data as Source
+            getSourceModule(this.$store).deleteItem(source.id!)
+            this.snackbarEvent = 'Countries Have Been Updated'
+            this.snackbarColor = 'success'
+          }
+          this.showSnackbar = true
+        })
       }
     }
   }
@@ -194,27 +213,20 @@ export default class Sources extends Vue {
 </script>
 
 <style scoped>
-.sourceWidget {
-  width: 60vh;
-  margin: 8px;
-  border-radius: 15px;
-  box-shadow: 0 5px 5px rgb(0, 0, 0, 0.2);
-  align-self: center;
-}
-.sourceAvatar {
-  align-self: center;
+#sourceHeader {
+  margin: 16px;
 }
 
 .sourceContent {
   padding: 8px;
 }
-.avatarBox {
-  justify-content: space-between;
-  align-items: center;
+#description {
+  text-align: right;
+  font-size: 20px;
+  color: rgb(0, 0, 0, 0.8);
+  margin-bottom: 10px;
 }
-.actionButtons {
-  justify-content: flex-end;
-}
+
 .button {
   width: 30px;
   height: 30px;

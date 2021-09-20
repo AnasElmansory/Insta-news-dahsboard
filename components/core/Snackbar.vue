@@ -1,14 +1,12 @@
 <template>
-  <v-container>
-    <v-snackbar id="snackbar" top v-model="showSnackbar" :color="snackbarColor">
-      <v-row justify="space-between" align="center" no-gutters>
-        <v-col cols="9">{{ snackbarEvent }} </v-col>
-        <v-col cols="3">
-          <v-btn text @click="closeSnackbar">Close</v-btn>
-        </v-col>
-      </v-row>
-    </v-snackbar>
-  </v-container>
+  <v-snackbar id="snackbar" top v-model="showSnackbar" :color="snackbarColor">
+    <v-row justify="space-between" align="center" no-gutters>
+      <v-col cols="9">{{ snackbarEvent }} </v-col>
+      <v-col cols="3">
+        <v-btn text @click="closeSnackbar">Close</v-btn>
+      </v-col>
+    </v-row>
+  </v-snackbar>
 </template>
 
 

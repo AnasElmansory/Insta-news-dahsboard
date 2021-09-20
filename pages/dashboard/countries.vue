@@ -3,10 +3,14 @@
     <page-view :type="pageType" v-on:setCurrentPage="setCurrentPage">
     </page-view>
 
+    <SizedBox />
+
     <Dialog
+      v-model="showDialog"
       :formFields="formFields"
       :modelType="dialogType"
       :event="event"
+      @on-input="onInput"
       @list-field-add="onAddSource"
       @dialogSubmit="onAddCountrySubmit"
       @remove-item="removeCountrySource"
@@ -33,6 +37,7 @@ import { getCountriesModule } from '~/store/data'
 import CountriesModule from '~/store/countries'
 import PageView from '~/components/PageView.vue'
 import Snackbar from '~/components/core/Snackbar.vue'
+import SizedBox from '~/components/core/SizedBox.vue'
 import SelectionDialog from '~/components/core/SelectionDialog.vue'
 import Dialog from '~/components/core/Dialog.vue'
 import ItemType, { CountrySource, FormFields, HttpMethods } from '~/lib/types'
@@ -42,11 +47,15 @@ import { baseUrl } from '~/lib/constants'
 import { saveRoute, hightImageUrl, taskWrapper } from '~/lib/utils/helper'
 import Source from '~/lib/models/source'
 @Component({
-  components: { SelectionDialog, PageView, Snackbar, Dialog },
-  layout: 'dash',
+  components: { SelectionDialog, PageView, Snackbar, Dialog, SizedBox },
+  layout(context) {
+    return context.payload?.layout ?? 'dash'
+  },
 })
 export default class CountriesPage extends Vue {
   pageType: ItemType = ItemType.Country
+
+  showDialog: boolean = false
 
   snackbarEvent: string = ''
   snackbarColor: string = 'success'
@@ -106,7 +115,7 @@ export default class CountriesPage extends Vue {
     }
   }
 
-  dismissDialog() {
+  dismissSelectionDialog() {
     this.showSelectionDialog = false
   }
   dismissSnackbar() {
@@ -132,26 +141,33 @@ export default class CountriesPage extends Vue {
     let sourceList = this.formFields[3].value as CountrySource[]
     this.formFields[3].value = sourceList.filter((x) => x.id !== sourceId)
   }
+
+  onInput(value: string, index: number) {
+    this.formFields[index].value = value
+  }
+
   async onAddSource(query: string) {
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      `/control/sources/search/${query}`,
-      HttpMethods.GET
-    )
-    if (typeof result === 'string') {
-      this.snackbarEvent = result as string
-      this.snackbarColor = 'error'
-      this.showSnackbar = true
-    } else {
-      this.sources = result.data
-      this.showSelectionDialog = true
-    }
+    this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        `/control/sources/search/${query}`,
+        HttpMethods.GET
+      )
+      if (typeof result === 'string') {
+        this.snackbarEvent = result as string
+        this.snackbarColor = 'error'
+        this.showSnackbar = true
+      } else {
+        this.sources = result.data
+        this.showSelectionDialog = true
+      }
+    })
   }
   async onAddCountrySubmit(fields: string[]) {
-    const countryName = fields[0]
-    const countryNameAr = fields[1]
-    const countryCode = fields[2].toUpperCase()
+    const countryName = this.formFields[0].value
+    const countryNameAr = this.formFields[1].value
+    const countryCode = (this.formFields[2].value as string).toUpperCase()
     const sources = this.formFields[3].value as CountrySource[]
     const country = {
       countryName,
@@ -159,23 +175,25 @@ export default class CountriesPage extends Vue {
       countryCode,
       sources,
     }
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      '/control/countries',
-      HttpMethods.POST,
-      country
-    )
-    if (typeof result === 'string') {
-      this.snackbarEvent = result as string
-      this.snackbarColor = 'error'
-    } else {
-      const country = Country.fromJSON(result.data)
-      this.snackbarEvent = `${country.countryName} is added successfully`
-      this.snackbarColor = 'success'
-      this.countriesModule.addCountry(country)
-    }
-    this.showSnackbar = true
+    this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        '/control/countries',
+        HttpMethods.POST,
+        country
+      )
+      if (typeof result === 'string') {
+        this.snackbarEvent = result as string
+        this.snackbarColor = 'error'
+      } else {
+        const country = Country.fromJSON(result.data)
+        this.snackbarEvent = `${country.countryName} is added successfully`
+        this.snackbarColor = 'success'
+        this.countriesModule.addCountry(country)
+      }
+      this.showSnackbar = true
+    })
   }
 
   sourceImage(image: string): string {
@@ -199,20 +217,21 @@ export default class CountriesPage extends Vue {
     }
   }
   async getCountries(page: number) {
-    const auth = await Vue.GoogleAuth
-    const headers = await constructHeaders(auth)
-    const response = await this.$axios.get(baseUrl + '/control/countries', {
-      headers: headers,
-      params: { page: page },
-    })
+    this.google.then(async (auth) => {
+      const headers = await constructHeaders(auth)
+      const response = await this.$axios.get(baseUrl + '/control/countries', {
+        headers: headers,
+        params: { page: page },
+      })
 
-    const itemList = response.data.map((x: any) => {
-      return Country.fromJSON(x)
-    })
+      const itemList = response.data.map((x: any) => {
+        return Country.fromJSON(x)
+      })
 
-    this.countriesModule.setItems({
-      items: itemList,
-      pageKey: page,
+      this.countriesModule.setItems({
+        items: itemList,
+        pageKey: page,
+      })
     })
   }
 }

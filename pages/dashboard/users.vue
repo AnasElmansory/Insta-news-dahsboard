@@ -1,5 +1,8 @@
 <template>
-  <page-view :type="type" v-on:setCurrentPage="setCurrentPage"> </page-view>
+  <v-container>
+    <page-view :type="type" v-on:setCurrentPage="setCurrentPage"> </page-view>
+    <SizedBox />
+  </v-container>
 </template>
 
 <script lang='ts'>
@@ -10,14 +13,17 @@ import User from '~/lib/models/user'
 import { saveRoute } from '~/lib/utils/helper'
 import { getUsersModule } from '~/store/data'
 import SearchBox from '~/components/core/SearchBox.vue'
+import SizedBox from '~/components/core/SizedBox.vue'
 import PageView from '~/components/PageView.vue'
 import ItemType from '~/lib/types'
 import { constructHeaders } from '~/lib/auth'
 import UsersModule from '~/store/users'
 
 @Component({
-  components: { UserWidget, SearchBox, PageView },
-  layout: 'dash',
+  components: { UserWidget, SearchBox, PageView, SizedBox },
+  layout(context) {
+    return context.payload?.layout ?? 'dash'
+  },
 })
 export default class Users extends Vue {
   type: ItemType = ItemType.User
@@ -44,20 +50,21 @@ export default class Users extends Vue {
     }
   }
   async getUsers(page: number) {
-    const auth = await Vue.GoogleAuth
-    const headers = await constructHeaders(auth)
-    const response = await this.$axios.get(baseUrl + '/control/users', {
-      headers: headers,
-      params: { page: page },
-    })
+    this.google.then(async (auth) => {
+      const headers = await constructHeaders(auth)
+      const response = await this.$axios.get(baseUrl + '/control/users', {
+        headers: headers,
+        params: { page: page },
+      })
 
-    const itemList = response.data.map((x: any) => {
-      return User.fromJSON(x)
-    })
+      const itemList = response.data.map((x: any) => {
+        return User.fromJSON(x)
+      })
 
-    this.userModule.setItems({
-      items: itemList,
-      pageKey: page,
+      this.userModule.setItems({
+        items: itemList,
+        pageKey: page,
+      })
     })
   }
 }

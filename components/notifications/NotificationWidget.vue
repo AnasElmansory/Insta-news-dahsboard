@@ -2,7 +2,6 @@
   <v-container>
     <v-card
       id="notification-card"
-      min-width="200"
       elevation="8"
       v-ripple
       dark
@@ -118,23 +117,24 @@ export default class NotificationWidget extends Vue {
       topic: this.formFields[1].value,
       keywords: this.formFields[2].value as string[],
     }
-
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      '/control/notification/topics',
-      HttpMethods.PUT,
-      notification
-    )
-    if (typeof result === 'string') {
-      this.snackbarColor = 'error'
-      this.snackbarEvent = result
-    } else {
-      this.snackbarEvent = `${result.data.username} Notifications keywords have been Updated Successfully`
-      this.snackbarColor = 'success'
-      getNotificationModule(this.$store).updateNotification(result.data)
-    }
-    this.showSnackbar = true
+    this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        '/control/notification/topics',
+        HttpMethods.PUT,
+        notification
+      )
+      if (typeof result === 'string') {
+        this.snackbarColor = 'error'
+        this.snackbarEvent = result
+      } else {
+        this.snackbarEvent = `${result.data.username} Notifications keywords have been Updated Successfully`
+        this.snackbarColor = 'success'
+        getNotificationModule(this.$store).updateNotification(result.data)
+      }
+      this.showSnackbar = true
+    })
   }
 
   async onDeleteNotification(topicId: string) {
@@ -146,21 +146,23 @@ export default class NotificationWidget extends Vue {
   }
 
   async deleteNotification(topicId: string) {
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      `/control/notification/topics/${topicId}`,
-      HttpMethods.DELETE
-    )
-    if (typeof result === 'string') {
-      this.snackbarColor = 'error'
-      this.snackbarEvent = result
-    } else {
-      this.snackbarEvent = `${result.data.username} Notification Topic has been Deleted Successfully`
-      this.snackbarColor = 'info'
-      getNotificationModule(this.$store).deleteItem(result.data.topic)
-    }
-    this.showSnackbar = true
+    this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        `/control/notification/topics/${topicId}`,
+        HttpMethods.DELETE
+      )
+      if (typeof result === 'string') {
+        this.snackbarColor = 'error'
+        this.snackbarEvent = result
+      } else {
+        this.snackbarEvent = `${result.data.username} Notification Topic has been Deleted Successfully`
+        this.snackbarColor = 'info'
+        getNotificationModule(this.$store).deleteItem(result.data.topic)
+      }
+      this.showSnackbar = true
+    })
   }
 
   get cardColor(): string {

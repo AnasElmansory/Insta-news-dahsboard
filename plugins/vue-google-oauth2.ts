@@ -4,19 +4,16 @@ import { client_id } from '~/lib/constants'
 
 declare module 'vue/types/vue' {
   interface VueConstructor {
-    GoogleAuth: Promise<gAuth>
+    GoogleAuth: gapi.auth2.GoogleAuth
+  }
+  interface Vue {
+    google: gapi.auth2.GoogleAuth
+    isMobile: boolean
   }
 }
 
-Vue.use(LoaderPlugin, { client_id })
+Vue.use(LoaderPlugin, { client_id, scope: 'email profile' })
+Vue.prototype.google = Vue.GoogleAuth
 declare type LoaderPlugin = {
   value: any
-}
-
-declare interface gAuth {
-  signIn: any
-  signOut: any
-  isSignedIn: any
-  currentUser: any
-  grantOfflineAccess: any
 }

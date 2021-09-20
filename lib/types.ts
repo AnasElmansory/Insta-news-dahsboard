@@ -28,4 +28,9 @@ export interface CountrySource {
   name: string
 }
 
+export enum AuthProvider {
+  'Google',
+  'Facebook',
+}
+
 export default ItemType

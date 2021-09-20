@@ -1,9 +1,7 @@
 <template>
   <v-container fluid>
-    <SearchBox />
-
     <v-row align="center">
-      <v-col cols="4" v-for="(item, index) in items" :key="index">
+      <v-col v-for="(item, index) in items" :key="index">
         <WidgetFactory :model="item" />
       </v-col>
     </v-row>
@@ -101,6 +99,3 @@ export default class PageView extends Vue {
 }
 </script>
 
-
-<style scoped>
-</style>

@@ -5,6 +5,11 @@ import { Module, VuexModule, Action, Mutation } from 'vuex-module-decorators'
 @Module
 export default class extends VuexModule {
   user: User = User.unAuthenticatedUser()
+  GoogleAuthInstance?: gapi.auth2.GoogleAuth
+  @Mutation
+  setGoogleAuth(auth: gapi.auth2.GoogleAuth) {
+    this.GoogleAuthInstance = auth
+  }
 
   @Mutation
   signIn(user: User) {
@@ -14,6 +19,10 @@ export default class extends VuexModule {
   @Mutation
   signOut() {
     this.user = User.unAuthenticatedUser()
+  }
+
+  get GoogleAuth(): gapi.auth2.GoogleAuth | undefined {
+    return this.GoogleAuthInstance ?? undefined
   }
 
   get isAuthenticated() {

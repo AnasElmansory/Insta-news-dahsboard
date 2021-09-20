@@ -27,7 +27,11 @@
     "types": [
       "@nuxt/types",
       "@nuxtjs/axios",
-      "@types/node"
+      "@types/node",
+      "facebook-js-sdk",
+      "gapi.auth2",
+      "gapi", 
+
     ]
   },
   "exclude": [

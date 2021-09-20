@@ -1,52 +1,58 @@
 <template>
-  <page-view :type="pageType" v-on:setCurrentPage="setCurrentPage">
-    <template #add-dialog>
-      <v-dialog max-width="500px">
-        <template v-slot:activator="{ on }">
-          <v-btn fab fixed right bottom dark class="addSourceBtn" v-on="on">
-            <v-icon>mdi-plus</v-icon>
-          </v-btn>
-        </template>
-        <v-card>
-          <v-container>
-            <v-form ref="form" @submit.prevent="searchTwitterSource">
-              <v-text-field
-                v-model="query"
-                :rules="twitterSearchRules"
-                class="twitterSearch"
-                outlined
-                color="#808080"
-                placeholder="search source on twitter"
-              ></v-text-field>
-            </v-form>
-            <v-row class="center spinner" v-if="loading">
-              <b-spinner variant="primary"></b-spinner>
-            </v-row>
-            <v-row class="center widget" v-if="twitterSource.id !== undefined">
-              <SourceWidget :usedInDialog="true" :source="twitterSource" />
-            </v-row>
-            <v-row class="center">
-              <v-btn
-                dark
-                :disabled="addButtonDisabled"
-                class="sourceAddBtn"
-                @click="addTwitterSource"
-                >Add Source</v-btn
+  <v-container>
+    <page-view :type="pageType" v-on:setCurrentPage="setCurrentPage">
+      <template #add-dialog>
+        <v-dialog max-width="500px">
+          <template v-slot:activator="{ on }">
+            <v-btn fab fixed right bottom dark class="addSourceBtn" v-on="on">
+              <v-icon>mdi-plus</v-icon>
+            </v-btn>
+          </template>
+          <v-card>
+            <v-container>
+              <v-form ref="form" @submit.prevent="searchTwitterSource">
+                <v-text-field
+                  v-model="query"
+                  :rules="twitterSearchRules"
+                  class="twitterSearch"
+                  outlined
+                  color="#808080"
+                  placeholder="search source on twitter"
+                ></v-text-field>
+              </v-form>
+              <v-row class="center spinner" v-if="loading">
+                <b-spinner variant="primary"></b-spinner>
+              </v-row>
+              <v-row
+                class="center widget"
+                v-if="twitterSource.id !== undefined"
               >
-            </v-row>
-          </v-container>
-        </v-card>
-      </v-dialog>
-    </template>
+                <SourceWidget :usedInDialog="true" :source="twitterSource" />
+              </v-row>
+              <v-row class="center">
+                <v-btn
+                  dark
+                  :disabled="addButtonDisabled"
+                  class="sourceAddBtn"
+                  @click="addTwitterSource"
+                  >Add Source</v-btn
+                >
+              </v-row>
+            </v-container>
+          </v-card>
+        </v-dialog>
+      </template>
 
-    <template #snackbar>
-      <Snackbar
-        v-model="showSnackbar"
-        :snackbarColor="snackbarColor"
-        :snackbarEvent="snackbarEvent"
-      />
-    </template>
-  </page-view>
+      <template #snackbar>
+        <Snackbar
+          v-model="showSnackbar"
+          :snackbarColor="snackbarColor"
+          :snackbarEvent="snackbarEvent"
+        />
+      </template>
+    </page-view>
+    <SizedBox />
+  </v-container>
 </template>
 
 
@@ -55,6 +61,7 @@ import { Component, Vue } from 'nuxt-property-decorator'
 import { getSourceModule } from '~/store/data'
 import SourceWidget from '~/components/sources/SourceWidget.vue'
 import SearchBox from '~/components/core/SearchBox.vue'
+import SizedBox from '~/components/core/SizedBox.vue'
 import Snackbar from '~/components/core/Snackbar.vue'
 import PageView from '~/components/PageView.vue'
 import Source from '~/lib/models/source'
@@ -63,15 +70,18 @@ import { constructHeaders } from '~/lib/auth'
 import { baseUrl } from '~/lib/constants'
 import { saveRoute, taskWrapper } from '~/lib/utils/helper'
 import SourcesModule from '~/store/sources'
+
 @Component({
   components: {
     PageView,
     Snackbar,
     SearchBox,
+    SizedBox,
     SourceWidget,
   },
-
-  layout: 'dash',
+  layout(context) {
+    return context.payload?.layout ?? 'dash'
+  },
 })
 export default class Sources extends Vue {
   pageType: ItemType = ItemType.Source
@@ -126,60 +136,65 @@ export default class Sources extends Vue {
   async searchTwitterSource() {
     this.loading = true
     if (this.$refs.form.validate()) {
-      const result = await taskWrapper(
-        this.$axios,
-        await constructHeaders(await Vue.GoogleAuth),
-        `/control/sources/search/twitter/${this.query}`,
-        HttpMethods.GET
-      )
-      if (typeof result === 'string') {
-        console.log(result)
-        this.snackbarEvent = result as string
-        this.snackbarColor = 'error'
-        this.showSnackbar = true
-      } else {
-        this.twitterSource = Source.fromJSON((result as any).data.data)
-      }
-      this.loading = false
+      this.google.then(async (auth) => {
+        const result = await taskWrapper(
+          this.$axios,
+          await constructHeaders(auth),
+          `/control/sources/search/twitter/${this.query}`,
+          HttpMethods.GET
+        )
+        if (typeof result === 'string') {
+          console.log(result)
+          this.snackbarEvent = result as string
+          this.snackbarColor = 'error'
+          this.showSnackbar = true
+        } else {
+          this.twitterSource = Source.fromJSON((result as any).data.data)
+        }
+        this.loading = false
+      })
     }
   }
 
   async addTwitterSource() {
     if (this.twitterSource.id !== undefined) {
-      const result = await taskWrapper(
-        this.$axios,
-        await constructHeaders(await Vue.GoogleAuth),
-        '/control/sources',
-        HttpMethods.POST,
-        this.twitterSource.toJSON!()
-      )
+      this.google.then(async (auth) => {
+        const result = await taskWrapper(
+          this.$axios,
+          await constructHeaders(auth),
+          '/control/sources',
+          HttpMethods.POST,
+          this.twitterSource.toJSON!()
+        )
 
-      if (typeof result === 'string') {
-        this.snackbarColor = 'error'
-        this.snackbarEvent = result as string
-        this.showSnackbar = true
-      } else {
-        this.snackbarColor = 'success'
-        this.sourceModule.addTwitterSource(this.twitterSource)
-        this.snackbarEvent = `${result.data.name} Is Added To Sources Successfully`
-        this.showSnackbar = true
-      }
+        if (typeof result === 'string') {
+          this.snackbarColor = 'error'
+          this.snackbarEvent = result as string
+          this.showSnackbar = true
+        } else {
+          this.snackbarColor = 'success'
+          this.sourceModule.addTwitterSource(this.twitterSource)
+          this.snackbarEvent = `${result.data.name} Is Added To Sources Successfully`
+          this.showSnackbar = true
+        }
+      })
     }
   }
   async getSources(page: number) {
-    const auth = await Vue.GoogleAuth
-    const headers = await constructHeaders(auth)
-    const response = await this.$axios.get(baseUrl + '/control/sources', {
-      headers: headers,
-      params: { page: page },
-    })
+    this.google.then(async (auth) => {
+      const headers = await constructHeaders(auth)
+      const response = await this.$axios.get(baseUrl + '/control/sources', {
+        headers: headers,
+        params: { page: page },
+      })
 
-    const itemList = response.data.map((x: any) => {
-      return Source.fromJSON(x)
-    })
-    getSourceModule(this.$store).setItems({
-      items: itemList,
-      pageKey: page,
+      const itemList = response.data.map((x: any) => {
+        return Source.fromJSON(x)
+      })
+      getSourceModule(this.$store).setItems({
+        items: itemList,
+        pageKey: page,
+      })
     })
   }
 }

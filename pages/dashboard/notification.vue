@@ -2,7 +2,10 @@
   <v-container fluid>
     <page-view :type="pageType" v-on:setCurrentPage="setCurrentPage">
     </page-view>
+    <SizedBox />
+
     <Dialog
+      v-model="showDialog"
       :formFields="formFields"
       :modelType="dialogType"
       event="Add"
@@ -34,6 +37,7 @@ import { Vue, Component } from 'nuxt-property-decorator'
 import { getNotificationModule } from '~/store/data'
 import SelectionDialog from '~/components/core/SelectionDialog.vue'
 import SearchBox from '~/components/core/SearchBox.vue'
+import SizedBox from '~/components/core/SizedBox.vue'
 import PageView from '~/components/PageView.vue'
 import Snackbar from '~/components/core/Snackbar.vue'
 import Dialog from '~/components/core/Dialog.vue'
@@ -48,15 +52,20 @@ import Source from '~/lib/models/source'
   components: {
     SelectionDialog,
     SearchBox,
+    SizedBox,
     PageView,
     Snackbar,
     Dialog,
   },
-  layout: 'dash',
+  layout(context) {
+    return context.payload?.layout ?? 'dash'
+  },
 })
 export default class NotificationPage extends Vue {
   pageType: ItemType = ItemType.Notification
   dialogType: string = 'Notification'
+
+  showDialog: boolean = false
 
   snackbarEvent: string = ''
   snackbarColor: string = 'success'
@@ -91,20 +100,22 @@ export default class NotificationPage extends Vue {
   }
 
   async onSubmitField(query: string) {
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      `/control/sources/search/${query}`,
-      HttpMethods.GET
-    )
-    if (typeof result === 'string') {
-      this.snackbarColor = 'error'
-      this.snackbarEvent = result
-      this.showSnackbar = true
-    } else {
-      this.sources = result.data
-      this.showSelectionDialog = true
-    }
+    this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        `/control/sources/search/${query}`,
+        HttpMethods.GET
+      )
+      if (typeof result === 'string') {
+        this.snackbarColor = 'error'
+        this.snackbarEvent = result
+        this.showSnackbar = true
+      } else {
+        this.sources = result.data
+        this.showSelectionDialog = true
+      }
+    })
   }
 
   onSourceSelected(source: Source) {
@@ -130,23 +141,24 @@ export default class NotificationPage extends Vue {
       topic: this.formFields[1].value,
       keywords: this.formFields[2].value as string[],
     }
-
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      '/control/notification/topics',
-      HttpMethods.POST,
-      notification
-    )
-    if (typeof result === 'string') {
-      this.snackbarColor = 'error'
-      this.snackbarEvent = result
-    } else {
-      this.snackbarEvent = `${result.data.username} Notifications Rules Is Created Successfully`
-      this.snackbarColor = 'success'
-      this.notificationModule.addNotification(result.data)
-    }
-    this.showSnackbar = true
+    this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        '/control/notification/topics',
+        HttpMethods.POST,
+        notification
+      )
+      if (typeof result === 'string') {
+        this.snackbarColor = 'error'
+        this.snackbarEvent = result
+      } else {
+        this.snackbarEvent = `${result.data.username} Notifications Rules Is Created Successfully`
+        this.snackbarColor = 'success'
+        this.notificationModule.addNotification(result.data)
+      }
+      this.showSnackbar = true
+    })
   }
 
   mounted() {
@@ -179,23 +191,24 @@ export default class NotificationPage extends Vue {
   }
 
   async getNotifications(page: number) {
-    const auth = await Vue.GoogleAuth
-    const headers = await constructHeaders(auth)
-    const response = await this.$axios.get(
-      baseUrl + '/control/notification/topics',
-      {
-        headers: headers,
-        params: { page: page },
-      }
-    )
+    this.google.then(async (auth) => {
+      const headers = await constructHeaders(auth)
+      const response = await this.$axios.get(
+        baseUrl + '/control/notification/topics',
+        {
+          headers: headers,
+          params: { page: page },
+        }
+      )
 
-    const itemList = response.data.map((x: any) => {
-      return Notification.fromJSON(x)
-    })
+      const itemList = response.data.map((x: any) => {
+        return Notification.fromJSON(x)
+      })
 
-    this.notificationModule.setItems({
-      items: itemList,
-      pageKey: page,
+      this.notificationModule.setItems({
+        items: itemList,
+        pageKey: page,
+      })
     })
   }
 }

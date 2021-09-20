@@ -13,7 +13,10 @@
 
     <v-dialog max-width="500px" v-model="showResultDialog">
       <v-card class="dialog">
-        <v-card-title class="text-center">Search Result</v-card-title>
+        <v-row justify="space-around" align="center" no-gutters>
+          <v-card-title class="text-center">Search Result</v-card-title>
+          <v-btn text color="error" @click="closeSearch">Close</v-btn>
+        </v-row>
         <v-col v-if="searchList.length != 0">
           <widget-factory
             v-for="(item, index) in searchList"
@@ -52,6 +55,7 @@ import { taskWrapper } from '~/lib/utils/helper'
 import { constructHeaders } from '~/lib/auth'
 import { HttpMethods } from '~/lib/types'
 import Notification from '~/lib/models/notification'
+import auth from '~/middleware/auth'
 @Component({
   components: {
     WidgetFactory,
@@ -66,6 +70,10 @@ export default class SearchBox extends Vue {
   snackbarEvent: string = ''
   snackbarColor: string = 'error'
   showSnackbar: boolean = false
+
+  closeSearch() {
+    this.showResultDialog = false
+  }
 
   get routeName(): string {
     return this.$router.currentRoute.name?.replace('dashboard-', '') ?? ''
@@ -95,91 +103,101 @@ export default class SearchBox extends Vue {
     }
   }
   async searchSources(): Promise<Source[]> {
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      `/control/sources/search/${this.query}`,
-      HttpMethods.GET
-    )
-    if (typeof result === 'string') {
-      this.snackbarEvent = result as string
-      this.snackbarColor = 'error'
-      this.showSnackbar = true
-      return []
-    } else {
-      return result.data as Source[]
-    }
+    return this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        `/control/sources/search/${this.query}`,
+        HttpMethods.GET
+      )
+      if (typeof result === 'string') {
+        this.snackbarEvent = result as string
+        this.snackbarColor = 'error'
+        this.showSnackbar = true
+        return []
+      } else {
+        return result.data as Source[]
+      }
+    })
   }
   async searchUsers(): Promise<User[]> {
-    if (this.query === '') {
-      return []
-    }
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      `/control/users/search/`,
-      HttpMethods.GET,
-      {},
-      { query: this.query }
-    )
-    if (typeof result === 'string') {
-      this.snackbarEvent = result as string
-      this.snackbarColor = 'error'
-      this.showSnackbar = true
-      return []
-    } else {
-      return result.data as User[]
-    }
+    return this.google.then(async (auth) => {
+      if (this.query === '') {
+        return []
+      }
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        `/control/users/search/`,
+        HttpMethods.GET,
+        {},
+        { query: this.query }
+      )
+      if (typeof result === 'string') {
+        this.snackbarEvent = result as string
+        this.snackbarColor = 'error'
+        this.showSnackbar = true
+        return []
+      } else {
+        return result.data as User[]
+      }
+    })
   }
   async searchNews(): Promise<News[]> {
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      `/control/news/search/`,
-      HttpMethods.GET,
-      {},
-      { query: this.query }
-    )
-    if (typeof result === 'string') {
-      this.snackbarEvent = result as string
-      this.snackbarColor = 'error'
-      this.showSnackbar = true
-      return []
-    } else {
-      return result.data as News[]
-    }
+    return this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        `/control/news/search/`,
+        HttpMethods.GET,
+        {},
+        { query: this.query }
+      )
+      if (typeof result === 'string') {
+        this.snackbarEvent = result as string
+        this.snackbarColor = 'error'
+        this.showSnackbar = true
+        return []
+      } else {
+        return result.data as News[]
+      }
+    })
   }
   async searchCountries(): Promise<Country[]> {
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      `/control/countries/search/${this.query}`,
-      HttpMethods.GET
-    )
-    if (typeof result === 'string') {
-      this.snackbarEvent = result as string
-      this.snackbarColor = 'error'
-      this.showSnackbar = true
-      return []
-    } else {
-      return result.data as News[]
-    }
+    return this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        `/control/countries/search/${this.query}`,
+        HttpMethods.GET
+      )
+      if (typeof result === 'string') {
+        this.snackbarEvent = result as string
+        this.snackbarColor = 'error'
+        this.showSnackbar = true
+        return []
+      } else {
+        return result.data as News[]
+      }
+    })
   }
   async searchNotification(): Promise<Notification[]> {
-    const result = await taskWrapper(
-      this.$axios,
-      await constructHeaders(await Vue.GoogleAuth),
-      `/control/notification/topics/search/${this.query}`,
-      HttpMethods.GET
-    )
-    if (typeof result === 'string') {
-      this.snackbarColor = 'error'
-      this.snackbarEvent = result
-      this.showSnackbar = true
-      return []
-    } else {
-      return result.data as Notification[]
-    }
+    return this.google.then(async (auth) => {
+      const result = await taskWrapper(
+        this.$axios,
+        await constructHeaders(auth),
+        `/control/notification/topics/search/${this.query}`,
+        HttpMethods.GET
+      )
+      if (typeof result === 'string') {
+        this.snackbarColor = 'error'
+        this.snackbarEvent = result
+        this.showSnackbar = true
+        return []
+      } else {
+        return result.data as Notification[]
+      }
+    })
   }
 }
 </script>

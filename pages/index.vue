@@ -1,54 +1,42 @@
 <template>
   <v-app>
-    <div class="authpage">
-      <b-spinner variant="primary"></b-spinner>
-    </div>
+    <v-container fluid class="authpage">
+      <v-progress-circular indeterminate color="info"></v-progress-circular>
+    </v-container>
   </v-app>
 </template>
 
-<script lang="ts">
-import Vue from 'vue'
-import getAdminUser from '../lib/auth'
 
-export default Vue.extend({
-  async mounted() {
-    await this.verifyUser()
-  },
-  methods: {
-    async verifyUser() {
-      const auth2 = await Vue.GoogleAuth
-      const isSignedIn = auth2.isSignedIn.get()
-      if (isSignedIn) {
-        const user = auth2.currentUser.get()
-        if (user) {
-          const adminOr = await getAdminUser(
-            user.getId(),
-            user.Zb.access_token,
-            this.$axios
-          )
-          if (adminOr === false) {
-            return this.$router.replace('/sign')
-          } else {
-            this.$store.commit('signIn', adminOr)
-
-            this.$router.replace('/dashboard')
-          }
-        }
+<script lang='ts'>
+import { Context } from '@nuxt/types'
+import { Vue, Component } from 'nuxt-property-decorator'
+import getAdminUser from '~/lib/auth'
+@Component({})
+export default class AuthPage extends Vue {
+  mounted() {
+    this.google.then(async (auth) => {
+      const googleUser = auth.currentUser.get()
+      const adminOr = await getAdminUser(
+        googleUser.getId(),
+        googleUser.getAuthResponse().access_token,
+        this.$axios
+      )
+      if (adminOr === false) {
+        this.$router.replace('/sign')
       } else {
-        return this.$router.replace('/sign')
+        this.$store.commit('signIn', adminOr)
+        this.$router.replace('/dashboard')
       }
-    },
-  },
-})
+    })
+  }
+}
 </script>
 
 
 <style scoped>
 .authpage {
   display: flex;
-  position: fixed;
-  width: 100%;
-  top: 50%;
+  height: 100%;
   justify-content: center;
   align-items: center;
 }

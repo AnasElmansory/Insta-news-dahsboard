@@ -1,3 +1,5 @@
+import { NuxtOptionsRouter } from '@nuxt/types/config/router'
+import { NuxtAxiosInstance } from '@nuxtjs/axios/types/index'
 import { baseUrl } from './constants'
 import User from './models/user'
 
@@ -5,7 +7,7 @@ export default async function getAdminUser(
   id: string,
   access_token: string,
   axios: any
-): Promise<false | any> {
+): Promise<false | User> {
   try {
     const response = await axios.get(baseUrl + `/api/admins/${id}`, {
       headers: {
@@ -21,8 +23,8 @@ export default async function getAdminUser(
     } else {
       return false
     }
-  } catch (eror) {
-    console.error(eror)
+  } catch (eror: any) {
+    console.error(eror.response.data)
     return false
   }
 }
@@ -41,16 +43,16 @@ function avoidRedunduntRouting(
   }
 }
 async function checkUserOnInit(
-  googleAuth: any,
+  googleAuth: gapi.auth2.GoogleAuth,
   router: any,
-  axios: any,
+  axios: NuxtAxiosInstance,
   to: string
 ) {
   if (googleAuth.isSignedIn.get()) {
     const googleUser = googleAuth.currentUser.get()
     const adminOr = await getAdminUser(
       googleUser.getId(),
-      googleUser.Zb.access_token,
+      googleUser.getAuthResponse().access_token,
       axios
     )
     if (adminOr !== false) {
@@ -63,11 +65,11 @@ async function checkUserOnInit(
   }
 }
 
-async function constructHeaders(googleAuth: any) {
+async function constructHeaders(googleAuth: gapi.auth2.GoogleAuth) {
   if (await googleAuth.isSignedIn.get()) {
     const googleUser = googleAuth.currentUser.get()
     return {
-      Authorization: 'Bearer ' + googleUser.Zb.access_token,
+      Authorization: 'Bearer ' + googleUser.getAuthResponse().access_token,
       provider: 'google',
     }
   } else {

@@ -1,5 +1,5 @@
 <template>
-  <v-card elevation="10" outlined shaped>
+  <v-card elevation="10" min-width="300" outlined shaped>
     <v-row>
       <v-col cols="8">
         <v-card-title>{{ user.name }}</v-card-title>
@@ -14,36 +14,31 @@
           <v-tooltip fixed bottom>
             <template v-slot:activator="{ on }">
               <v-btn
+                v-show="enableAdminization"
                 v-on="on"
                 text
                 color="success"
-                @click="adminizeUser(user.id)"
+                @click="adminization(user.id)"
               >
-                adminize
+                {{ adminizationBtnText }}
               </v-btn>
             </template>
             grant admin permission
           </v-tooltip>
-          <v-btn text color="error" @click="deleteUser(user.id)">
+
+          <v-btn
+            v-show="enableDelete"
+            text
+            color="error"
+            @click="deleteUser(user.id)"
+          >
             delete
           </v-btn>
         </v-card-actions>
-
-        <!-- <v-snackbar v-model="showSnackbar" :color="snackbarColor" top>
-          <v-row justify="space-between" align="center">
-            <v-col cols="9">
-              {{ snackEvent }}
-            </v-col>
-            <v-col cols="3">
-              <v-btn id="closeSnackBtn" text small @click="dismissSnackbar">
-                Close
-              </v-btn>
-            </v-col>
-          </v-row>
-        </v-snackbar> -->
       </v-col>
       <v-col cols="4">
-        <v-img contain :src="user.avatar"></v-img>
+        <img v-if="isGuest" src="../../static/user_placeholder.png" />
+        <v-img v-else contain :src="user.avatar"></v-img>
       </v-col>
     </v-row>
     <Snackbar
@@ -79,51 +74,143 @@ export default class UserWidget extends Vue {
     this.showSnackbar = false
   }
 
-  async deleteUser(userId: string) {
-    if (!confirm('Are You Sure You Want To Delete this User')) {
-      return
+  get isOwner(): boolean {
+    if (this.user.permission === 'owner') {
+      return true
     } else {
-      const result = await taskWrapper(
-        this.$axios,
-        await constructHeaders(await Vue.GoogleAuth),
-        `/control/users/${userId}`,
-        HttpMethods.DELETE
-      )
-      if (typeof result === 'string') {
-        this.snackbarColor = 'error'
-        this.snackbarEvent = result
-      } else {
-        getUsersModule(this.$store).deleteItem(result.data.id)
-        this.snackbarColor = 'warning'
-        this.snackbarEvent = `${result.data.name} has been deleted`
-      }
-      this.showSnackbar = true
+      return false
     }
   }
-  async adminizeUser(userId: string) {
+
+  get isUser(): boolean {
+    if (this.isGuest) {
+      return false
+    } else if (
+      this.user.permission === 'user' ||
+      this.user.permission === 'none' ||
+      this.user.permission === null
+    ) {
+      return true
+    } else return false
+  }
+
+  get isGuest(): boolean {
+    if (this.user.name === 'Guest') {
+      return true
+    } else {
+      return false
+    }
+  }
+
+  get isEditor(): boolean {
+    if (this.user.permission === 'editor') {
+      return true
+    } else {
+      return false
+    }
+  }
+
+  get isMe() {
+    if (this.user.id === this.$store.getters.userInfo.id) {
+      return true
+    } else {
+      return false
+    }
+  }
+
+  get enableDelete(): boolean {
+    if (this.isMe || this.isOwner) {
+      return false
+    } else {
+      return true
+    }
+  }
+  get enableAdminization(): boolean {
+    if (this.isMe || this.isOwner || this.isGuest) {
+      return false
+    } else {
+      return true
+    }
+  }
+
+  get adminizationBtnText(): string {
+    if (this.isUser) {
+      return 'Adminize'
+    } else {
+      return 'unAdminize'
+    }
+  }
+
+  async deleteUser(userId: string) {
     if (
-      !confirm('Are You Sure You Want To Grant This User Editor Permission')
+      !(await this.$bvModal.msgBoxConfirm(
+        'Are You Sure You Want To Delete this User ?!',
+        {
+          cancelVariant: 'info',
+          okVariant: 'success',
+          footerTextVariant: 'light',
+        }
+      ))
     ) {
       return
     } else {
-      const result = await taskWrapper(
-        this.$axios,
-        await constructHeaders(await Vue.GoogleAuth),
-        `/control/users/grant_admin_permission/${userId}`,
-        HttpMethods.PUT
-      )
-      if (typeof result === 'string') {
-        this.snackbarColor = 'error'
-        this.snackbarEvent = result
-      } else {
-        getUsersModule(this.$store).updateUserPermission({
-          userId: result.data.id,
-          permission: result.data.permission,
-        })
-        this.snackbarColor = 'success'
-        this.snackbarEvent = `${result.data.name} becomes an Editor`
-      }
-      this.showSnackbar = true
+      this.google.then(async (auth) => {
+        const result = await taskWrapper(
+          this.$axios,
+          await constructHeaders(auth),
+          `/control/users/${userId}`,
+          HttpMethods.DELETE
+        )
+        if (typeof result === 'string') {
+          this.snackbarColor = 'error'
+          this.snackbarEvent = result
+        } else {
+          getUsersModule(this.$store).deleteItem(result.data.id)
+          this.snackbarColor = 'warning'
+          this.snackbarEvent = `${result.data.name} has been deleted`
+        }
+        this.showSnackbar = true
+      })
+    }
+  }
+  async adminization(userId: string) {
+    const confirmationText = this.isUser
+      ? 'Are You Sure You Want To Grant This User Editor Permission ?!'
+      : 'Confirm revoke User from Editor permission ?!'
+
+    if (
+      !(await this.$bvModal.msgBoxConfirm(confirmationText, {
+        cancelVariant: 'error',
+        okVariant: 'success',
+        footerTextVariant: 'light',
+      }))
+    ) {
+      return
+    } else {
+      this.google.then(async (auth) => {
+        const result = await taskWrapper(
+          this.$axios,
+          await constructHeaders(auth),
+          `/control/users/grant_admin_permission/${userId}`,
+          HttpMethods.PUT,
+          { permission: this.isUser ? 'editor' : 'user' }
+        )
+        if (typeof result === 'string') {
+          this.snackbarColor = 'error'
+          this.snackbarEvent = result
+        } else {
+          const snackbarEvent = this.isUser
+            ? `${result.data.name} becomes an Editor`
+            : `${result.data.name} becomes a regular user`
+          getUsersModule(this.$store).updateUserPermission({
+            userId: result.data.id,
+            permission: result.data.permission,
+          })
+          this.snackbarColor = 'success'
+          this.snackbarEvent = snackbarEvent
+        }
+        this.showSnackbar = true
+      })
     }
   }
 }
@@ -138,5 +225,10 @@ export default class UserWidget extends Vue {
 }
 #email {
   color: rgb(0, 0, 0, 0.9);
+}
+
+img {
+  max-width: 100%;
+  max-height: 100%;
 }
 </style>
